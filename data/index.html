@@ -1,0 +1,292 @@
+<html>
+  <head>
+    <title>Watchy Remote Screen</title>
+    <style>
+      .box {
+        border: 1px solid black;
+        padding: 0.5em;
+        margin-block-end: 0.4em;
+      }
+      canvas.box {
+        padding: 0;
+      }
+      h4 {
+        margin-block-start: 0.4em;
+        margin-block-end: 0.4em;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Watchy Remote Screen</h2>
+    <div class="box">
+      <h4>Watchy IP (if this page is not served from the watchy)</h4>
+      <input id="txtIP" type="text" placeholder="10.10.10.10" />
+      <button id="btnSetIP">Set</button>
+    </div>
+    <div class="box">
+      <h4>Canvas rendering and upload</h4>
+      <canvas id="canvas" class="box" width="200px" height="200px"></canvas>
+      <br />
+      <br />
+      <button id="btnSendRaw">Send canvas</button>
+      <br />
+      <button id="btnClearWhite">Clear canvas (white)</button>
+      <button id="btnClearBlack">Clear canvas (black)</button>
+      <br />
+      <button id="btnCheckeredDisks">Pattern: disks</button>
+      <button id="btnCheckeredSquares">Pattern: squares</button>
+      <br />
+      <button id="btnScreenCapture">Start screen capture</button>
+    </div>
+    <div class="box">
+      <h4>Watchy font rendering test</h4>
+      Font:
+      <select id="selFont"></select
+      ><br />
+      Text:
+      <input
+        id="txtFontText"
+        type="text"
+        size="100"
+        value="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?*,.;:@"
+      /><br />
+      X: <input id="txtFontX" type="number" value="0" /> Y:
+      <input id="txtFontY" type="number" value="20" /><br />
+      <input type="checkbox" id="chkFontClearFirst" checked />
+      <label for="chkFontClearFirst">Clear first</label><br />
+      <input type="checkbox" id="chkFontInverted" />
+      <label for="chkFontInverted">Invert</label><br />
+      <button id="btnShowFont">Draw</button>
+    </div>
+    <script>
+      let baseUrl = "";
+      document.getElementById("btnSetIP").onclick = () => {
+        let val = document.getElementById("txtIP").value;
+        baseUrl = val != "" ? "http://" + val + "/" : "";
+        getFontList().then((list) => updateFontList(list));
+      };
+      const canvas = document.getElementById("canvas");
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (h != w) throw "Assert error - screen size expected to be square";
+      function clearCanvas(colour) {
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = colour;
+        ctx.fillRect(0, 0, w, h);
+      }
+      function checkeredPattern(circles) {
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "black";
+        let squareSize = 20,
+          squareCount = w / squareSize,
+          r = squareSize / 2;
+        for (let x = 0; x < squareCount; x++)
+          for (let y = 0; y < squareCount; y++)
+            if ((x + y) % 2 != 0) {
+              if (circles) {
+                ctx.beginPath();
+                ctx.arc(
+                  x * squareSize + r,
+                  y * squareSize + r,
+                  r,
+                  0,
+                  Math.PI * 2
+                );
+                ctx.fill();
+              } else {
+                ctx.fillRect(
+                  x * squareSize,
+                  y * squareSize,
+                  squareSize,
+                  squareSize
+                );
+              }
+            }
+      }
+
+      clearCanvas("white");
+      checkeredPattern(true);
+
+      function pixelToBit(data, pixelIndex) {
+        return (data[pixelIndex * 4] +
+          data[pixelIndex * 4 + 1] +
+          data[pixelIndex * 4 + 2]) /
+          3 <
+          50
+          ? 0
+          : 1;
+      }
+      function rgbaToBWBuffer(data) {
+        const len = data.length / (4 * 8);
+        const result = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          result[i] =
+            (pixelToBit(data, i * 8 + 0) << 7) |
+            (pixelToBit(data, i * 8 + 1) << 6) |
+            (pixelToBit(data, i * 8 + 2) << 5) |
+            (pixelToBit(data, i * 8 + 3) << 4) |
+            (pixelToBit(data, i * 8 + 4) << 3) |
+            (pixelToBit(data, i * 8 + 5) << 2) |
+            (pixelToBit(data, i * 8 + 6) << 1) |
+            (pixelToBit(data, i * 8 + 7) << 0);
+        }
+        return result;
+      }
+      function canvasImageToEInkBuffer() {
+        const ctx = canvas.getContext("2d");
+        const img = ctx.getImageData(0, 0, w, h);
+        atkinson(img);
+        return rgbaToBWBuffer(img.data);
+      }
+
+      function atkinson(image) {
+        // @author https://github.com/NielsLeenheer/CanvasDither/blob/master/src/canvas-dither.js#L105
+        const width = image.width;
+        const luminance = new Uint8ClampedArray(image.width * image.height);
+
+        for (let l = 0, i = 0; i < image.data.length; l++, i += 4) {
+          luminance[l] =
+            image.data[i] * 0.299 +
+            image.data[i + 1] * 0.587 +
+            image.data[i + 2] * 0.114;
+        }
+
+        for (let l = 0, i = 0; i < image.data.length; l++, i += 4) {
+          const value = luminance[l] < 129 ? 0 : 255;
+          const error = Math.floor((luminance[l] - value) / 8);
+          image.data.fill(value, i, i + 3);
+
+          luminance[l + 1] += error;
+          luminance[l + 2] += error;
+          luminance[l + width - 1] += error;
+          luminance[l + width] += error;
+          luminance[l + width + 1] += error;
+          luminance[l + 2 * width] += error;
+        }
+        return image;
+      }
+
+      function request(method, url, formData) {
+        return new Promise((resolve, reject) => {
+          var request = new XMLHttpRequest();
+          request.open(
+            method,
+            baseUrl.replace(/\/+$/, "") + "/" + url.replace(/^\/+/, "")
+          );
+          request.onerror = () => reject(request);
+          request.onload = () => resolve(request.response);
+          if (formData) {
+            if (typeof formData == "function") {
+              let newData = new FormData();
+              formData(newData);
+              formData = newData;
+            }
+          }
+          request.send(formData);
+        });
+      }
+      function get(url) {
+        return request("GET", url);
+      }
+      function post(url, formData) {
+        return request("POST", url, formData);
+      }
+
+      function sendRaw(buffer) {
+        var blob = new Blob([buffer], { type: "application/octet-stream" });
+        return post("/raw", (formData) => formData.append("a", blob));
+      }
+      function sendCanvas() {
+        return sendRaw(canvasImageToEInkBuffer());
+      }
+      function getFontList() {
+        return get("/fonts").then((r) => r.split(","));
+      }
+      getFontList();
+      document.getElementById("btnSendRaw").onclick = () => sendCanvas();
+      document.getElementById("btnClearWhite").onclick = () =>
+        clearCanvas("white");
+      document.getElementById("btnClearBlack").onclick = () =>
+        clearCanvas("black");
+      document.getElementById("btnCheckeredSquares").onclick = () =>
+        checkeredPattern(false);
+      document.getElementById("btnCheckeredDisks").onclick = () =>
+        checkeredPattern(true);
+
+      var isSendComplete = true;
+      async function setupStreaming() {
+        let stream = await navigator.mediaDevices.getDisplayMedia({
+          audio: false,
+          // see: https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints/video
+          video: {
+            width: w,
+            height: h,
+            frameRate: 5,
+          },
+        });
+        const video = document.createElement("video");
+        const result = await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => {
+            video.play();
+            setInterval(() => {
+              const context = canvas.getContext("2d");
+              context.drawImage(
+                video,
+                (w - video.videoWidth) / 2,
+                (h - video.videoHeight) / 2,
+                video.videoWidth,
+                video.videoHeight
+              );
+              if (isSendComplete) {
+                isSendComplete = false;
+                sendCanvas().then(
+                  () => (isSendComplete = true),
+                  () => (isSendComplete = true)
+                );
+              }
+            }, 50);
+            resolve(canvas);
+          };
+          video.srcObject = stream;
+        });
+        // stream.getTracks().forEach(function (track) {
+        //     track.stop()
+        // })
+      }
+      let btnScreenCapture = document.getElementById("btnScreenCapture");
+      btnScreenCapture.onclick = () => {
+        btnScreenCapture.setAttribute("disabled", "");
+        setupStreaming();
+      };
+
+      updateFontList = (function setupFontRenderingTest() {
+        const selFont = document.getElementById("selFont");
+        const txtFontText = document.getElementById("txtFontText");
+        const txtFontX = document.getElementById("txtFontX");
+        const txtFontY = document.getElementById("txtFontY");
+        const chkFontClearFirst = document.getElementById("chkFontClearFirst");
+        const chkFontInverted = document.getElementById("chkFontInverted");
+        document.getElementById("btnShowFont").onclick = () => {
+          return post("/drawText", (formData) => {
+            formData.append("t", txtFontText.value);
+            formData.append("f", selFont.value);
+            formData.append("x", txtFontX.value);
+            formData.append("y", txtFontY.value);
+            formData.append("c", chkFontClearFirst.checked ? 1 : 0);
+            formData.append("i", chkFontInverted.checked ? 1 : 0);
+          });
+        };
+        return (items) => {
+          selFont.innerHTML = "";
+          items.forEach((name) => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.text = name;
+            selFont.appendChild(opt);
+          });
+        };
+      })();
+      getFontList().then((list) => updateFontList(list));
+    </script>
+  </body>
+</html>
