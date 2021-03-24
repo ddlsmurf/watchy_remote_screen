@@ -12,9 +12,9 @@
 #define WIFI_SSID "your wifi's name"
 #define WIFI_PASS "and it's password"
 
-// curl -v -F "data=@test.bin" http://192.168.83.46/
-// curl -v -F "data=@white.bin" http://192.168.83.46/
-// curl -v -F "data=@black.bin" http://192.168.83.46/
+// curl -v -F "data=@test.bin" http://192.168.83.46/raw
+// curl -v -F "data=@white.bin" http://192.168.83.46/raw
+// curl -v -F "data=@black.bin" http://192.168.83.46/raw
 // curl -v http://192.168.83.46/fonts
 // curl -v -d "f=FreeMonoBold9pt7b&t=hello&x=0&y=50&c=1&i=0" http://192.168.83.46/drawText
 
