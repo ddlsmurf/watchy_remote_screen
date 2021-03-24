@@ -24,3 +24,26 @@ It is not meant as a finished product (very few safety checks, no auth, hacky co
 - When the watch reboots it will display it's IP address, just visit it with a browser.
 
   Note: no need to set the IP in the web page (unless you opened the html file another way than from the watch)
+
+## Endpoints
+
+- `POST /raw`: expects a single file in `multipart/form-data` format of exactly 5000 (200x200/8) bytes. Copies the file into the display buffer and updates the screen.
+
+    eg:
+      `curl -F "data=@buffer.bin" http://$WATCHY_IP/raw`
+
+- `GET /fonts`: get a comma-separated list of font names acceptable to `/drawText`
+
+    eg:
+      `curl http://$WATCHY_IP/fonts`
+
+- `POST /drawText`: render text on the watchy and update the display. Expects a `application/x-www-form-urlencoded` body with the following parameters:
+    - `f`: font name
+    - `t`: text string to display
+    - `x` and `y`: coordinates to render at (in that weird Adafruit GFX format - some issues with `y` pointing to the top or baseline)
+    - `c`: if non empty and non zero, clear the full screen before drawing the text
+    - `i`: if non empty and non zero, invert colours. If inverted, text is rendered in white, and if clear is requested, clears to black.
+
+    eg:
+      `curl -d "f=FreeMonoBold9pt7b&t=hello&x=0&y=50&c=1&i=0" http://$WATCHY_IP/drawText`
+
