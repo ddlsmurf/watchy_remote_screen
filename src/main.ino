@@ -2,6 +2,7 @@
 #include <GxEPD2_BW.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
+#include "mdns.h"
 #include "all_fonts.h"
 
 #define CS 5
@@ -11,6 +12,8 @@
 
 #define WIFI_SSID "your wifi's name"
 #define WIFI_PASS "and it's password"
+
+#define MDNS_HOSTNAME "WRS"
 
 // curl -v -F "data=@test.bin" http://192.168.83.46/raw
 // curl -v -F "data=@white.bin" http://192.168.83.46/raw
@@ -36,7 +39,6 @@ void setup()
     display.init(0, false); //_initial_refresh to false to prevent full update on init
     display.setFullWindow();
     display.fillScreen(GxEPD_WHITE);
-    // display.setFont(&FreeMonoBold9pt7b);
     display.setFont(fonts["FreeSans9pt7b"]);
     display.setTextColor(GxEPD_BLACK);
     display.setCursor(30, 30);
@@ -54,10 +56,21 @@ void setup()
         }
     }
     Serial.println("Wifi connnected");
+
+    esp_err_t err = mdns_init();
+    if (err) {
+        printf("MDNS Init failed: %d\n", err);
+    } else {
+        mdns_hostname_set(MDNS_HOSTNAME);
+        mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+    }
+
     display.fillScreen(GxEPD_WHITE);
     display.setCursor(30, 30);
     display.println("Ready");
+    display.print("http://");
     display.println(WiFi.localIP());
+    display.println("http://" MDNS_HOSTNAME ".local");
     display.display(true);
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
