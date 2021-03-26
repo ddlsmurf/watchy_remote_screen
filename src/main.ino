@@ -29,7 +29,6 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000);
-    Serial.printf("Setup core ID: %i\n", xPortGetCoreID());
     Serial.println("Startup...");
     if (!SPIFFS.begin())
     {
@@ -94,6 +93,9 @@ void setup()
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response); },
         [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+            static uint32_t start;
+            if (!index)
+                start = millis();
             if (len)
             {
                 /* If the next line fails, you need to patch .pio/libdeps/esp32dev/GxEPD2/src/GxEPD2_BW.h
@@ -105,8 +107,12 @@ void setup()
                 uint8_t *buffer = display.getBuffer();
                 memcpy(buffer + index, data, len);
             }
-            if (final)
+            if (final) {
+                uint32_t now = millis();
+                Serial.printf(" -> upload in  %f\n", (now - start) / 1000.0);
                 display.display(true);
+                Serial.printf(" -> display in %f\n", (millis() - now) / 1000.0);
+            }
         });
     server.on("/drawText", HTTP_POST, [](AsyncWebServerRequest *request) {
         const String &text = request->arg("t");
