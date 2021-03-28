@@ -14,6 +14,13 @@
         margin-block-start: 0.4em;
         margin-block-end: 0.4em;
       }
+      table {
+        width: 100%;
+      }
+      td, th {
+        text-align: center;
+        vertical-align: top;
+      }
     </style>
   </head>
   <body>
@@ -25,7 +32,25 @@
     </div>
     <div class="box">
       <h4>Canvas rendering and upload</h4>
-      <canvas id="canvas" class="box" width="200px" height="200px"></canvas>
+      <table>
+        <tr>
+          <th>Raw canvas</th>
+          <th>Dithering preview</th>
+        </tr>
+        <tr>
+          <td>
+            <canvas id="canvas" class="box" width="200px" height="200px"></canvas>
+          </td>
+          <td>
+            <canvas id="canvasPreviewDithering" class="box" width="200px" height="200px"></canvas>
+            <br />
+            Threshold:
+            <br />
+            <input type="range" id="sliderDitheringThreshold" min="0" max="255" step="1" value="127">
+          </td>
+        </tr>
+      </table>
+      <!-- <canvas id="canvas" class="box" width="200px" height="200px"></canvas> -->
       <br />
       <br />
       <button id="btnSendRaw">Send canvas</button>
@@ -66,13 +91,32 @@
         getFontList().then((list) => updateFontList(list));
       };
       const canvas = document.getElementById("canvas");
+      const canvasPreviewDithering = document.getElementById("canvasPreviewDithering");
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       if (h != w) throw "Assert error - screen size expected to be square";
+
+      const slider = document.getElementById("sliderDitheringThreshold");
+      let atkinsonThreshold = 129;
+      slider.value = atkinsonThreshold;
+      slider.onchange = () => {
+        atkinsonThreshold = slider.value;
+        updatePreview();
+      }
+      function updatePreview() {
+        const ctx = canvasPreviewDithering.getContext("2d");
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, w, h);
+        const ctxSource = canvas.getContext("2d");
+        const img = ctxSource.getImageData(0, 0, w, h);
+        atkinson(img);
+        ctx.putImageData(img, 0, 0);
+      }
       function clearCanvas(colour) {
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = colour;
         ctx.fillRect(0, 0, w, h);
+        updatePreview();
       }
       function checkeredPattern(circles) {
         const ctx = canvas.getContext("2d");
@@ -102,6 +146,7 @@
                 );
               }
             }
+        updatePreview();
       }
 
       clearCanvas("white");
@@ -152,7 +197,7 @@
         }
 
         for (let l = 0, i = 0; i < image.data.length; l++, i += 4) {
-          const value = luminance[l] < 129 ? 0 : 255;
+          const value = luminance[l] < atkinsonThreshold ? 0 : 255;
           const error = Math.floor((luminance[l] - value) / 8);
           image.data.fill(value, i, i + 3);
 
@@ -237,6 +282,7 @@
                 video.videoWidth,
                 video.videoHeight
               );
+              updatePreview();
               if (isSendComplete) {
                 isSendComplete = false;
                 sendCanvas().then(
