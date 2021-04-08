@@ -10,6 +10,9 @@
       canvas.box {
         padding: 0;
       }
+      canvas.dragging {
+        border-color: red;
+      }
       h4 {
         margin-block-start: 0.4em;
         margin-block-end: 0.4em;
@@ -153,6 +156,23 @@
 
       clearCanvas("white");
       checkeredPattern(true);
+
+      function drawImageFromURL(url) {
+        const img = new Image();
+        img.onload = () => {
+          const ctx = canvas.getContext("2d");
+          const i = {w: img.naturalWidth, h: img.naturalHeight};
+          const r = w / i.w < h / i.h ? w / i.w : h / i.h;
+          const dw = i.w * r, dh = i.h * r;
+          ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+          updatePreview();
+        }
+        img.onerror = (e) => {
+          console.error(e);
+          alert("Error reading image " + e);
+        }
+        img.src = url;
+      }
 
       function pixelToBit(data, pixelIndex) {
         return (data[pixelIndex * 4] +
@@ -358,6 +378,31 @@
         };
       })();
       getFontList().then((list) => updateFontList(list));
+
+      (function (drop) {
+        if (typeof FileReader === "undefined")
+          return alert("Browser does not support FileReader");
+        isDragging = (x) => drop.classList[x ? 'add' : 'remove']("dragging");
+        drop.ondragover = (evt) => evt.preventDefault();
+        drop.ondragenter = () => isDragging(true);
+        drop.ondragleave = () => isDragging(false);
+        drop.ondragend = () => isDragging(false);
+        drop.ondrop = (evt) => {
+          isDragging(false);
+          evt.preventDefault();
+          const files = evt.dataTransfer.files;
+          if (files.length != 1)
+            return alert("Only drop exactly one file at a time");
+          const reader = new FileReader();
+          // Note: addEventListener doesn't work in Google Chrome for this event
+          reader.onload = () => drawImageFromURL(reader.result);
+          reader.onerror = (e) => {
+            console.error(e);
+            alert("Error reading file " + e);
+          }
+          reader.readAsDataURL(files[0]);
+        };
+      })(canvas);
     </script>
   </body>
 </html>
