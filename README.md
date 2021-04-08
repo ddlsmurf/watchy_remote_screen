@@ -21,7 +21,7 @@ It is not meant as a finished product (very few safety checks, no auth, hacky co
       pio run -t upload
       pio run -t uploadfs
 
-- When the watch reboots it will display it's IP address, just visit it with a browser.
+- When the watch reboots it will display its IP address, just visit it with a browser.
 
   Note: no need to set the IP in the web page (unless you opened the html file another way than from the watch)
 
