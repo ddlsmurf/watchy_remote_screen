@@ -259,7 +259,9 @@
         checkeredPattern(true);
 
       var isSendComplete = true;
+      let stopStreamingFunc = null;
       async function setupStreaming() {
+        let stopRequested = false;
         let stream = await navigator.mediaDevices.getDisplayMedia({
           audio: false,
           // see: https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints/video
@@ -271,9 +273,19 @@
         });
         const video = document.createElement("video");
         const result = await new Promise((resolve, reject) => {
+          let interval = 0;
           video.onloadedmetadata = () => {
             video.play();
-            setInterval(() => {
+            interval = setInterval(() => {
+              updateBtnScreenCapture();
+              if (stopRequested) {
+                clearInterval(interval);
+                video.pause();
+                stream.getTracks().forEach(function (track) {
+                    track.stop()
+                });
+                return;
+              }
               const context = canvas.getContext("2d");
               context.drawImage(
                 video,
@@ -295,16 +307,21 @@
           };
           video.srcObject = stream;
         });
-        // stream.getTracks().forEach(function (track) {
-        //     track.stop()
-        // })
+        stopStreamingFunc = function() {
+          stopRequested = true;
+          stopStreamingFunc = null;
+        }
       }
       let btnScreenCapture = document.getElementById("btnScreenCapture");
+      function updateBtnScreenCapture(text) {
+        btnScreenCapture.removeAttribute("disabled");
+        btnScreenCapture.innerText = stopStreamingFunc ? "Stop streaming" : "Start streaming";
+      }
       btnScreenCapture.onclick = () => {
         btnScreenCapture.setAttribute("disabled", "");
-        setupStreaming();
+        stopStreamingFunc ? stopStreamingFunc() : setupStreaming();
       };
-
+      updateBtnScreenCapture();
       updateFontList = (function setupFontRenderingTest() {
         const selFont = document.getElementById("selFont");
         const txtFontText = document.getElementById("txtFontText");
