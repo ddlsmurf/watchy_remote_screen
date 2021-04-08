@@ -62,6 +62,8 @@
       <button id="btnCheckeredSquares">Pattern: squares</button>
       <br />
       <button id="btnScreenCapture">Start screen capture</button>
+      <br />
+      <button id="btnSaveBuffer">Save canvas buffer</button>
     </div>
     <div class="box">
       <h4>Watchy font rendering test</h4>
@@ -183,7 +185,9 @@
         atkinson(img);
         return rgbaToBWBuffer(img.data);
       }
-
+      function canvasImageToEInkBufferBlob() {
+        return new Blob([canvasImageToEInkBuffer()], { type: "application/octet-stream" });
+      }
       function atkinson(image) {
         // @author https://github.com/NielsLeenheer/CanvasDither/blob/master/src/canvas-dither.js#L105
         const width = image.width;
@@ -237,12 +241,11 @@
         return request("POST", url, formData);
       }
 
-      function sendRaw(buffer) {
-        var blob = new Blob([buffer], { type: "application/octet-stream" });
+      function sendRaw(blob) {
         return post("/raw", (formData) => formData.append("a", blob));
       }
       function sendCanvas() {
-        return sendRaw(canvasImageToEInkBuffer());
+        return sendRaw(canvasImageToEInkBufferBlob());
       }
       function getFontList() {
         return get("/fonts").then((r) => r.split(","));
@@ -257,6 +260,11 @@
         checkeredPattern(false);
       document.getElementById("btnCheckeredDisks").onclick = () =>
         checkeredPattern(true);
+      document.getElementById("btnSaveBuffer").onclick = () => {
+        const url = URL.createObjectURL(canvasImageToEInkBufferBlob());
+        window.location.assign(url);
+        URL.revokeObjectURL(url);
+      }
 
       var isSendComplete = true;
       let stopStreamingFunc = null;
