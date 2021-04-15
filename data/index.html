@@ -70,6 +70,7 @@
       <button id="btnScreenCapture">Start screen capture</button>
       <br />
       <button id="btnSaveBuffer">Save canvas buffer</button>
+      <button id="btnSaveBufferHeader">Save canvas buffer as header</button>
     </div>
     <div class="box">
       <h4>Watchy font rendering test</h4>
@@ -215,6 +216,9 @@
       function canvasImageToEInkBufferBlob() {
         return new Blob([canvasImageToEInkBuffer()], { type: "application/octet-stream" });
       }
+      function textToBlob(text) {
+        return new Blob([text], { type: "application/octet-stream" });
+      }
       function atkinson(image) {
         // @author https://github.com/NielsLeenheer/CanvasDither/blob/master/src/canvas-dither.js#L105
         const width = image.width;
@@ -287,10 +291,33 @@
         checkeredPattern(false);
       document.getElementById("btnCheckeredDisks").onclick = () =>
         checkeredPattern(true);
-      document.getElementById("btnSaveBuffer").onclick = () => {
-        const url = URL.createObjectURL(canvasImageToEInkBufferBlob());
+      function downloadBlob(blob) {
+        const url = URL.createObjectURL(blob);
         window.location.assign(url);
         URL.revokeObjectURL(url);
+      }
+      document.getElementById("btnSaveBuffer").onclick = () => {
+        downloadBlob(canvasImageToEInkBufferBlob());
+      }
+      document.getElementById("btnSaveBufferHeader").onclick = () => {
+        let lines = [];
+        lines.push("// 200x200");
+        lines.push("const uint8_t image[] PROGMEM = {");
+        let buffer = canvasImageToEInkBuffer();
+        let row = [];
+        for (let i = 0; i < buffer.length; i++) {
+          let c = buffer[i].toString(16);
+          c = "0x" + (c.length == 1 ? "0" : "") + c;
+          row.push(c);
+          if (row.length >= 8) {
+            lines.push("    " + row.join(",") + (i < buffer.length - 1 ? "," : ""));
+            row = [];
+          }
+        }
+        if (row.length > 0)
+          lines.push("    " + row.join(","));
+        lines.push("};");
+        downloadBlob(textToBlob(lines.join("\n")));
       }
 
       var isSendComplete = true;
