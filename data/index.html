@@ -24,6 +24,9 @@
         text-align: center;
         vertical-align: top;
       }
+      .quiet {
+        color: #888;
+      }
     </style>
   </head>
   <body>
@@ -43,6 +46,8 @@
         <tr>
           <td>
             <canvas id="canvas" class="box" width="200px" height="200px"></canvas>
+            <br />
+            <span class="quiet" id="canvasCoords"></span>
           </td>
           <td>
             <canvas id="canvasPreviewDithering" class="box" width="200px" height="200px"></canvas>
@@ -99,6 +104,10 @@
       const h = canvas.clientHeight;
       if (h != w) throw "Assert error - screen size expected to be square";
 
+      const canvasCoords = document.getElementById("canvasCoords");
+      canvas.onmousemove = (e) => {
+        canvasCoords.innerText = e.offsetX + " ; " + e.offsetY;
+      }
       const slider = document.getElementById("sliderDitheringThreshold");
       let atkinsonThreshold = 129;
       slider.value = atkinsonThreshold;
