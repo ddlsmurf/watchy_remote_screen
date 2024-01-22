@@ -11,7 +11,7 @@
 #define BUSY 19
 
 #define WIFI_SSID "your wifi's name"
-#define WIFI_PASS "and it's password"
+#define WIFI_PASS "and its password"
 
 #define MDNS_HOSTNAME "WRS"
 
